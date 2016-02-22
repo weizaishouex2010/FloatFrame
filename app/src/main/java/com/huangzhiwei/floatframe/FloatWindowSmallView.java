@@ -1,10 +1,12 @@
 package com.huangzhiwei.floatframe;
 
 import android.content.Context;
+import android.os.AsyncTask;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -30,6 +32,10 @@ public class FloatWindowSmallView extends LinearLayout {
      */
     private WindowManager windowManager;
 
+    /**
+     * 小悬浮窗的布局
+     */
+    private LinearLayout smallWindowLayout;
     /**
      * 小悬浮窗的参数
      */
@@ -70,13 +76,37 @@ public class FloatWindowSmallView extends LinearLayout {
      */
     private static int statusBarHeight;
 
+    /**
+     * 小火箭控件
+     */
+    private ImageView rocketImg;
+
+    /**
+     * 记录小火箭的宽度
+     */
+    private int rocketWidth;
+
+    /**
+     * 记录小火箭的高度
+     */
+    private int rocketHeight;
+
+    /**
+     * 记录当前手指是否按下
+     */
+    private boolean isPressed;
+
     public FloatWindowSmallView(Context context) {
         super(context);
         windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         LayoutInflater.from(context).inflate(R.layout.float_frame_small,this);
-        View view = findViewById(R.id.small_window_layout);
-        viewHeight = view.getLayoutParams().height;
-        viewWidth = view.getLayoutParams().width;
+        smallWindowLayout = (LinearLayout) findViewById(R.id.small_window_layout);
+        viewHeight = smallWindowLayout.getLayoutParams().height;
+        viewWidth = smallWindowLayout.getLayoutParams().width;
+
+        rocketImg = (ImageView) findViewById(R.id.rocket_img);
+        rocketHeight = rocketImg.getLayoutParams().height;
+        rocketWidth = rocketImg.getLayoutParams().width;
         TextView percent = (TextView) findViewById(R.id.percent);
         percent.setText(MyWindowManager.getUsedPercentValue(context));
     }
@@ -86,6 +116,7 @@ public class FloatWindowSmallView extends LinearLayout {
         switch (event.getAction())
         {
             case MotionEvent.ACTION_DOWN:
+                isPressed = true;
                 // 手指按下时记录必要数据,纵坐标的值都需要减去状态栏高度
                 xDownInScreen = event.getRawX();
                 yDownInScreen = event.getRawY()-getStatusBarHeight();
@@ -98,12 +129,23 @@ public class FloatWindowSmallView extends LinearLayout {
                 xMoveInScreen = event.getRawX();
                 yMoveInScreen = event.getRawY()-getStatusBarHeight();
                 // 手指移动的时候更新小悬浮窗的位置
+
+                updateViewStatus();
                 updateViewPosition();
                 break;
             case MotionEvent.ACTION_UP:
-                // 如果手指离开屏幕时，xDownInScreen和xInScreen相等，且yDownInScreen和yInScreen相等，则视为触发了单击事件。
-                if(xMoveInScreen == xDownInScreen && yDownInScreen == yMoveInScreen)
-                    openBigWindow();
+                isPressed = false;
+                if(MyWindowManager.isReadyToLaunch())
+                {
+                    launchRocket();
+                }
+                else
+                {
+                    updateViewStatus();
+                    // 如果手指离开屏幕时，xDownInScreen和xInScreen相等，且yDownInScreen和yInScreen相等，则视为触发了单击事件。
+                    if(xMoveInScreen == xDownInScreen && yDownInScreen == yMoveInScreen)
+                        openBigWindow();
+                }
                 break;
             default:
                 break;
@@ -137,9 +179,17 @@ public class FloatWindowSmallView extends LinearLayout {
         mParams.x = (int) (xMoveInScreen-xDownInView);
         mParams.y = (int) (yMoveInScreen-yDownInView);
         windowManager.updateViewLayout(this,mParams);
+        MyWindowManager.updateLauncher();
     }
 
-
+    /**
+     * 用于发射小火箭。
+     */
+    private void launchRocket()
+    {
+        MyWindowManager.removeLauncher(getContext());
+        new LaunchTask().execute();
+    }
     /**
      * 用于获取状态栏的高度。
      *
@@ -165,5 +215,60 @@ public class FloatWindowSmallView extends LinearLayout {
             }
         }
         return statusBarHeight;
+    }
+
+    private void updateViewStatus()
+    {
+        if(isPressed && rocketImg.getVisibility()!=View.VISIBLE)
+        {
+            mParams.width = rocketWidth;
+            mParams.height = rocketHeight;
+            windowManager.updateViewLayout(this,mParams);
+            smallWindowLayout.setVisibility(View.GONE);
+            rocketImg.setVisibility(View.VISIBLE);
+            MyWindowManager.createLauncher(getContext());
+        }
+        else if(!isPressed)
+        {
+            mParams.width = viewWidth;
+            mParams.height = viewHeight;
+            windowManager.updateViewLayout(this,mParams);
+            smallWindowLayout.setVisibility(View.VISIBLE);
+            rocketImg.setVisibility(View.GONE);
+            MyWindowManager.removeLauncher(getContext());
+        }
+
+    }
+
+    class LaunchTask extends AsyncTask<Void,Void,Void>
+    {
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            while (mParams.y>0)
+            {
+                mParams.y -= 10;
+                publishProgress();
+                try {
+                    Thread.sleep(8);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(Void... values) {
+            windowManager.updateViewLayout(FloatWindowSmallView.this,mParams);
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            updateViewStatus();
+            mParams.x = (int) (xDownInScreen-xDownInView);
+            mParams.y = (int) (yDownInScreen-yDownInView);
+            windowManager.updateViewLayout(FloatWindowSmallView.this,mParams);
+        }
     }
 }

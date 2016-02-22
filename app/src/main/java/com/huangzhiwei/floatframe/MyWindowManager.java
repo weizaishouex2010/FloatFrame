@@ -32,6 +32,14 @@ public class MyWindowManager {
      */
     private static FloatWindowSmallView smallView;
     /**
+     * 大悬浮窗View的实例
+     */
+    private static FloatWindowBigView bigView;
+    /**
+     * 火箭发射台的实例
+     */
+    private static RocketLauncher rocketLauncher;
+    /**
      * 小悬浮窗View的参数
      */
     private static WindowManager.LayoutParams smallLayoutParams;
@@ -39,11 +47,11 @@ public class MyWindowManager {
      * 大悬浮窗View的参数
      */
     private static WindowManager.LayoutParams bigLayoutParams;
-
     /**
-     * 大悬浮窗View的实例
+     * 火箭发射台的参数
      */
-    private static FloatWindowBigView bigView;
+    private static WindowManager.LayoutParams launcherParams;
+
 
     /**
      * 如果WindowManager还未创建，则创建一个新的WindowManager返回。否则返回当前已创建的WindowManager。
@@ -185,6 +193,71 @@ public class MyWindowManager {
         return bigView != null || smallView != null;
     }
 
+
+    /**
+     * 创建一个火箭发射台，位置为屏幕底部。
+     */
+    public static void createLauncher(Context context)
+    {
+        WindowManager windowManager = getWindowManager(context);
+        int screenwidth = windowManager.getDefaultDisplay().getWidth();
+        int screenheight = windowManager.getDefaultDisplay().getHeight();
+        if(rocketLauncher == null)
+        {
+            rocketLauncher = new RocketLauncher(context);
+            if(launcherParams == null)
+            {
+                launcherParams = new WindowManager.LayoutParams();
+                launcherParams.x = screenwidth / 2 - RocketLauncher.width / 2;
+                launcherParams.y = screenheight - RocketLauncher.height;
+                launcherParams.type = WindowManager.LayoutParams.TYPE_PHONE;
+                launcherParams.format = PixelFormat.RGBA_8888;
+                launcherParams.gravity = Gravity.LEFT | Gravity.TOP;
+                launcherParams.width = RocketLauncher.width;
+                launcherParams.height = RocketLauncher.height;
+            }
+            windowManager.addView(rocketLauncher,launcherParams);
+        }
+    }
+
+    /**
+     * 将火箭发射台从屏幕上移除。
+     */
+    public static void removeLauncher(Context context) {
+        if(rocketLauncher != null)
+        {
+            WindowManager windowManager = getWindowManager(context);
+            windowManager.removeView(rocketLauncher);
+            rocketLauncher = null;
+        }
+    }
+
+    /**
+     * 更新火箭发射台的显示状态。
+     */
+    public static void updateLauncher()
+    {
+        if(rocketLauncher!=null)
+        {
+            rocketLauncher.updateLauncherStatus(isReadyToLaunch());
+        }
+    }
+
+    /**
+     * 判断小火箭是否准备好发射了。
+     *
+     * @return 当火箭被发到发射台上返回true，否则返回false。
+     */
+    public static boolean isReadyToLaunch()
+    {
+        if((launcherParams.x < smallLayoutParams.x && launcherParams.x+launcherParams.width > smallLayoutParams.x+smallLayoutParams.width)
+        &&(launcherParams.y < smallLayoutParams.y+smallLayoutParams.height))
+        {
+            return true;
+        }
+        return false;
+    }
+
     /**
      * 计算已使用内存的百分比，并返回。
      *
@@ -192,9 +265,8 @@ public class MyWindowManager {
      *            可传入应用程序上下文。
      * @return 已使用内存的百分比，以字符串形式返回。
      */
-
-
-    public static void updateUsedPercent(Context context) {
+    public static void updateUsedPercent(Context context)
+    {
         if(smallView!=null)
         {
             TextView percent = (TextView) smallView.findViewById(R.id.percent);
