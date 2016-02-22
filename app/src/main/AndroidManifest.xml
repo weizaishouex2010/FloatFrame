@@ -2,6 +2,8 @@
 <manifest package="com.huangzhiwei.floatframe"
           xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -14,6 +16,15 @@
 
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+        </activity>
+
+        <service
+            android:name=".FloatFrameService"
+            android:enabled="true"
+            android:exported="true">
+        </service>
+
+        <activity android:name=".TestSensorActivity">
         </activity>
     </application>
 
